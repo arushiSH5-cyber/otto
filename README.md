@@ -4,9 +4,11 @@ Otto is a friendly owl that keeps an older person company, protects them from sc
 
 Built solo at the Liquid AI × Qualcomm On-Device AI Hackathon.
 
-- **🗣️ Talk + 🌳 Memory Lane:** Grandma chats with Otto in her own language (English, Español, हिन्दी, 中文, Tiếng Việt, Tagalog). Otto is warm, slow and a bit playful, with gentle jokes and easy trivia. In Memory Lane, Otto asks about her life ("Tell me about your first job") and saves each answer with a date and a short title (e.g. *"La Mañana en la Panadería"*) in a Memory book.
-- **🔍 Is this a scam?:** She takes a photo of a letter or text (or pastes it). The vision model returns strict JSON with a probability for each red flag. Otto shows a big verdict ("Likely a scam: 98%"), confidence bars and 2–3 plain reasons in her language.
-- **⛈️ Storm Mode:** A calm, spoken 4-step checklist, then regular "Are you OK?" check-ins. If she doesn't tap within 15 s, Otto sounds loud beeps and shows a flashing full-screen **I NEED HELP** card with her name, her medical note and a family phone number.
+- **🎙️ Talk out loud:** tap the big button and speak in any of six languages. **LFM3-Audio-2B** transcribes it on-device in ~0.5–1 s. Replies stream in word by word (first word in ~0.3 s), and Otto speaks each sentence as soon as it's ready, his beak moving.
+- **🌳 Memory Lane + 🖼️ Photo Memories:** Otto asks about her life, or she shows him an old photo. **LFM3-VL** looks at it, says something specific about it and asks who's in it. Her stories become a **scrapbook** with polaroids, tape and dates, and she can **print it for the grandkids**.
+- **🔍 Is this a scam?:** she photographs a letter. Otto puts on his detective hat and returns a verdict ("Likely a scam: 95%") with confidence bars and plain reasons in her language. Then he turns it into action: a giant **📞 Call Maria** button and a script for what to say if they call back.
+- **⛈️ Otto notices when things go wrong:** when **Wi-Fi drops** or the **laptop is unplugged** (a power cut), Otto speaks up unprompted: "The internet just went out. Don't worry, I live right here in this house, so I still work." He offers Storm Mode, where the sky turns to rain, Otto holds a lantern, and he shows the battery level, a calm spoken checklist and "Are you OK?" check-ins. No tap within 15 s brings loud beeps and a flashing **I NEED HELP** card for whoever walks in.
+- **A living storybook:** the sky follows the real time of day (dawn, day, dusk, night with stars). A big date and clock help with orientation. Otto has moods (happy, worried, detective, listening, storm) that match what's happening.
 
 ## Run it offline
 
@@ -15,6 +17,7 @@ brew install llama.cpp                      # needs build ≥ b12088 for LFM3 (t
 python3 -m venv .venv && .venv/bin/pip install fastapi uvicorn httpx pydantic
 hf download LiquidAI/LFM3-1.7B-GGUF LFM3-1.7B-Q4_K_M.gguf --local-dir models
 hf download LiquidAI/LFM3-VL-2B-GGUF LFM3-VL-2B-Q4_K_M.gguf mmproj-LFM3-VL-2B-Q8_0.gguf --local-dir models
+hf download LiquidAI/LFM3-Audio-2B-GGUF LFM3-Audio-2B-Q4_K_M.gguf mmproj-LFM3-Audio-2B-Q8_0.gguf --local-dir models
 ```
 
 Then turn Wi-Fi off and run:
@@ -29,6 +32,7 @@ open http://localhost:8000
 ```bash
 llama-server -m models/LFM3-1.7B-Q4_K_M.gguf --port 8080 -c 4096 -ngl 99 --jinja
 llama-server -m models/LFM3-VL-2B-Q4_K_M.gguf --mmproj models/mmproj-LFM3-VL-2B-Q8_0.gguf --port 8081 -c 4096 -ngl 99 --jinja
+llama-server -m models/LFM3-Audio-2B-Q4_K_M.gguf --mmproj models/mmproj-LFM3-Audio-2B-Q8_0.gguf --port 8082 -c 4096 -ngl 99 --jinja --temp 0
 BACKEND=mac uvicorn server:app --host 127.0.0.1 --port 8000
 ```
 
@@ -40,8 +44,9 @@ Demo letters for Scam Check are in `demo/` (regenerate them with `demo/make_lett
 
 | Use | Model | Quant |
 |---|---|---|
-| Talk, Memory Lane, titles, translating reasons | `LiquidAI/LFM3-1.7B-GGUF` | Q4_K_M |
-| Scam Check (photo → JSON) | `LiquidAI/LFM3-VL-2B-GGUF` + mmproj | Q4_K_M / Q8_0 |
+| Talk (streamed), Memory Lane, titles, translating reasons | `LiquidAI/LFM3-1.7B-GGUF` | Q4_K_M |
+| Voice in (speech recognition, 6 languages) | `LiquidAI/LFM3-Audio-2B-GGUF` + mmproj | Q4_K_M / Q8_0 |
+| Scam Check (photo → JSON), Photo Memories | `LiquidAI/LFM3-VL-2B-GGUF` + mmproj | Q4_K_M / Q8_0 |
 
 Thinking is turned off per request (`chat_template_kwargs.enable_thinking=false`) so answers come straight back.
 
@@ -49,7 +54,10 @@ Thinking is turned off per request (`chat_template_kwargs.enable_thinking=false`
 
 | Action | Time | Speed |
 |---|---|---|
-| Talk reply | ~0.7–0.8 s | ~62 tok/s |
+| Talk reply, first word (streamed) | ~0.3 s | ~60 tok/s |
+| Talk reply, full | ~0.8–1.2 s | ~60 tok/s |
+| Voice → text (LFM3-Audio) | ~0.5–1.0 s | ~61 tok/s |
+| Photo Memories question | ~1.5 s | ~60 tok/s |
 | Memory Lane question | ~0.65 s | ~62 tok/s |
 | Scam Check, pasted text | ~2.4 s | ~61 tok/s |
 | Scam Check, photo + reasons translated | ~4.8 s | ~61 tok/s |
@@ -76,6 +84,14 @@ The real latency and tokens/sec appear under every answer on screen.
 
 - **A.** Move to the Qualcomm **iQ9** (Nexa SDK on the NPU, or llama.cpp on the CPU) via `BACKEND=iq9`, and show iQ9 latency on screen.
 - **B.** **d1-2B** for Scam Check (calibrated probabilities in one pass).
-- **C.** **LFM3-Audio** voice in and out, in her language.
-- **D.** Memory book → a "print for the grandkids" page.
+- **C.** LFM3-Audio **voice out** too (Otto's own voice instead of the macOS voices). Voice in is done.
+- **D.** Family digest: a weekly on-device summary of her memories and check-ins that she chooses to share.
 - **E.** Battery and quiet-hours settings for Storm Mode check-ins (every 30 min in real life; turn off Demo mode in Settings).
+
+## 60-second demo
+
+1. "Meet Otto." Tap the mic and say *"Otto, tell me a joke"* in Spanish. Words stream in and Otto speaks.
+2. **Turn Wi-Fi off.** Otto notices on his own: "The internet just went out… I still work." The badge turns green: **📴 Offline ✓ · 0 bytes sent**.
+3. Show `demo/irs_scam.png` → detective Otto → "Likely a scam: 98%" → **📞 Call Maria**.
+4. **Unplug the charger.** Otto: "Looks like the power went out." Storm Mode → rain, lantern, checklist → don't tap → alarm + **I NEED HELP**.
+5. Show an old photo → Otto asks about it → it lands in the scrapbook. "All on-device with Liquid LFM3: text, vision and audio. Zero bytes left the house."

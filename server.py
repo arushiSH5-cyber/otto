@@ -1,13 +1,16 @@
 """Otto: FastAPI on localhost:8000. Talks only to local llama-servers."""
 import asyncio, json, re, uuid, datetime, random
 from pathlib import Path
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse, FileResponse
+import base64
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, ValidationError
 import llm
 
 ROOT = Path(__file__).parent
 DATA = ROOT / "data"; DATA.mkdir(exist_ok=True)
+PHOTOS = DATA / "photos"; PHOTOS.mkdir(exist_ok=True)
 MEM = DATA / "memories.json"; SETTINGS = DATA / "settings.json"
 app = FastAPI()
 
@@ -71,6 +74,74 @@ async def chat(inp: ChatIn):
         text = SAFE["med"].get(inp.lang, SAFE["med"]["en"])
     return {"text": text, **meta(r)}
 
+def safety_reply(text, lang):
+    if MED_RE.search(text): return SAFE["med"].get(lang, SAFE["med"]["en"]), "medical"
+    if MONEY_RE.search(text): return SAFE["money"].get(lang, SAFE["money"]["en"]).format(c=settings()["contact_name"]), "money"
+    return None, None
+
+@app.post("/api/chat/stream")
+async def chat_stream(inp: ChatIn):
+    """Server-sent lines: {"t": piece} ... then {"done": meta}. Safety rules run before the model."""
+    last = inp.messages[-1]["content"] if inp.messages else ""
+    msg, kind = safety_reply(last, inp.lang)
+    async def gen():
+        if msg:
+            yield json.dumps({"t": msg}) + "\n"
+            yield json.dumps({"done": {"model": "safety rule", "latency_s": 0, "safety": kind}}) + "\n"; return
+        msgs = [{"role": "system", "content": system_prompt(inp.lang)}] + inp.messages[-8:]
+        out = ""
+        async for x in llm.stream(msgs):
+            if isinstance(x, dict):
+                yield json.dumps({"done": x}) + "\n"
+            else:
+                out += x
+                if re.search(r"\d+\s?mg\b", out, re.I):  # output guard mid-stream
+                    yield json.dumps({"replace": SAFE["med"].get(inp.lang, SAFE["med"]["en"])}) + "\n"
+                    yield json.dumps({"done": {"model": "safety rule", "latency_s": 0}}) + "\n"; return
+                yield json.dumps({"t": x}) + "\n"
+    return StreamingResponse(gen(), media_type="application/x-ndjson")
+
+# ---------- Voice in: LFM3-Audio speech recognition ----------
+class AsrIn(BaseModel):
+    audio: str  # base64 wav (16 kHz mono)
+    lang: str = "en"
+
+@app.post("/api/asr")
+async def asr(inp: AsrIn):
+    lname = LANGS.get(inp.lang, "English").split(" (")[0]
+    msgs = [{"role": "system", "content": f"Perform ASR in {lname}."},
+            {"role": "user", "content": [{"type": "input_audio", "input_audio": {"data": inp.audio, "format": "wav"}}]}]
+    try:
+        r = await llm.chat(msgs, kind="audio", max_tokens=120, temperature=0, replay_key="asr")
+    except Exception as e:
+        raise HTTPException(503, "voice model not running")
+    text = re.sub(r"^\s*(auto|otro|oto|otta|autto|odo)\b", "Otto", r["text"].strip(), flags=re.I)  # her friend's name
+    return {"text": text, **meta(r)}
+
+# ---------- Photo Memories: Otto looks at an old photo and asks about it ----------
+class PhotoIn(BaseModel):
+    image: str  # data URL
+    lang: str = "en"
+
+@app.post("/api/photo/ask")
+async def photo_ask(inp: PhotoIn):
+    pid = uuid.uuid4().hex[:10]
+    (PHOTOS / f"{pid}.jpg").write_bytes(base64.b64decode(inp.image.split(",", 1)[1]))
+    lname = LANGS.get(inp.lang, "English")
+    s = settings()
+    msgs = [{"role": "user", "content": [
+        {"type": "text", "text": f"You are Otto, a warm owl friend of {s['name']}, an older person. She is showing you an old photo from her life. "
+         f"In {lname} only: say one warm sentence about something specific you see in the photo, then ask ONE gentle question "
+         "about the people, place or moment. Max 2 short sentences."},
+        {"type": "image_url", "image_url": {"url": inp.image}}]}]
+    r = await llm.chat(msgs, kind="vision", max_tokens=80, temperature=0.5, replay_key="photo")
+    return {"text": r["text"], "photo_id": pid, **meta(r)}
+
+@app.get("/api/photo/{pid}")
+def photo(pid: str):
+    if not re.fullmatch(r"[0-9a-f]{10}", pid): raise HTTPException(404)
+    return FileResponse(PHOTOS / f"{pid}.jpg")
+
 # ---------- Memory Lane ----------
 FALLBACK_Q = ["Tell me about your first job.", "What was your favorite song when you were young?",
               "Tell me about the house you grew up in.", "How did you meet someone you love?",
@@ -89,13 +160,17 @@ class MemIn(BaseModel):
     question: str
     answer: str
     lang: str = "en"
+    photo_id: str | None = None
 
 @app.post("/api/memory")
 async def memory_save(inp: MemIn):
     lname = LANGS.get(inp.lang, 'English')
-    msgs = [{"role": "system", "content": "You write short book-chapter titles. Reply with ONLY the title."},
-            {"role": "user", "content": f"Memory: {inp.answer}\n\nWrite a warm 2-5 word chapter title for this memory in {lname}. "
-             "Examples: 'The Bakery at Dawn', 'Dancing at the Fair', 'My First Paycheck'. Only the title."}]
+    msgs = [{"role": "system", "content": f"You name chapters of a grandmother's life-story book. Reply with a NEW 2-5 word title in {lname}. Never copy the memory's words."},
+            {"role": "user", "content": "My first job was at a bakery. I woke up at 4am and it smelled like sweet bread."},
+            {"role": "assistant", "content": "The Bakery at Dawn"},
+            {"role": "user", "content": "I met my husband at a dance in 1962. He stepped on my feet all night."},
+            {"role": "assistant", "content": "Two Left Feet"},
+            {"role": "user", "content": inp.answer}]
     t = await llm.chat(msgs, max_tokens=20, temperature=0.4, replay_key="title")
     title = t["text"].strip().split("\n")[0].strip('"*#“”\' ').rstrip(".")
     if not title or len(title) > 50 or inp.answer.lower().startswith(title.lower()[:20]):
@@ -105,7 +180,7 @@ async def memory_save(inp: MemIn):
                            max_tokens=60, temperature=0.5)
     mems = load(MEM, [])
     item = {"id": uuid.uuid4().hex[:8], "date": datetime.date.today().isoformat(),
-            "title": title, "question": inp.question, "answer": inp.answer, "lang": inp.lang}
+            "title": title, "question": inp.question, "answer": inp.answer, "lang": inp.lang, "photo_id": inp.photo_id}
     mems.insert(0, item); MEM.write_text(json.dumps(mems, ensure_ascii=False, indent=1))
     return {"memory": item, "text": reply["text"], **meta(reply)}
 
