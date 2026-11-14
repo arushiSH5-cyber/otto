@@ -216,7 +216,7 @@ $("#laneForm").onsubmit = async (e) => {
   $("#bubble").textContent = t("thinking");
   const r = await api("/api/memory", { question: lane.question, answer, lang, photo_id: lane.photo_id });
   $("#laneIn").value = ""; $("#laneForm").hidden = true; $("#lanePhoto").hidden = true;
-  say(`${r.text}  📖 “${r.memory.title}”`); showMeta(r); happy();
+  say(`${r.text}  📖 “${r.memory.title}”`); showMeta(r); happy(); confetti();
 };
 async function renderBook() {
   $("#bookTitle").textContent = t("book_title", { n: settings.name });
@@ -407,6 +407,51 @@ async function badge() {
   b.classList.toggle("warn", reqs > 0);
 }
 
+// ---------- little joys ----------
+// Otto's eyes follow your finger or mouse.
+const look = $("#look");
+window.addEventListener("pointermove", (e) => {
+  const r = owl.getBoundingClientRect(), cx = r.left + r.width * 0.5, cy = r.top + r.height * 0.42;
+  const dx = e.clientX - cx, dy = e.clientY - cy, d = Math.hypot(dx, dy) || 1, k = Math.min(1, d / 300);
+  look.style.transform = `translate(${(dx / d) * 5 * k}px, ${(dy / d) * 4 * k}px)`;
+});
+// Pet Otto: he squishes, giggles and hearts float up.
+$(".perch").addEventListener("click", () => {
+  owl.classList.remove("squish"); void owl.offsetWidth; owl.classList.add("squish");
+  const h = $("#hearts");
+  for (let i = 0; i < 5; i++) {
+    const s = document.createElement("span"); s.textContent = ["💗", "💜", "💛", "🩵", "✨"][i];
+    s.style.left = 30 + Math.random() * 40 + "%"; s.style.top = 30 + Math.random() * 20 + "%";
+    s.style.setProperty("--r", (Math.random() * 60 - 30) + "deg"); s.style.animationDelay = i * 0.08 + "s";
+    h.append(s); setTimeout(() => s.remove(), 1900);
+  }
+  const lines = TICKLE[lang] || TICKLE.en;
+  say(lines[Math.floor(Math.random() * lines.length)]); mood("happy", 2000);
+});
+// A small sparkle burst on every button tap.
+document.addEventListener("pointerdown", (e) => {
+  if (!e.target.closest("button, .wide-btn, .call, .tile")) return;
+  for (let i = 0; i < 7; i++) {
+    const s = document.createElement("span"); s.className = "spark"; s.textContent = ["✦", "✧", "·", "♡"][i % 4];
+    const a = (i / 7) * Math.PI * 2, d = 40 + Math.random() * 30;
+    s.style.left = e.clientX + "px"; s.style.top = e.clientY + "px";
+    s.style.color = ["#c3a6ea", "#f4a7b9", "#9fc2ea", "#f9c98f"][i % 4];
+    s.style.setProperty("--dx", Math.cos(a) * d + "px"); s.style.setProperty("--dy", Math.sin(a) * d + "px");
+    document.body.append(s); setTimeout(() => s.remove(), 850);
+  }
+});
+// Confetti of hearts and stars when a memory is saved.
+function confetti() {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  for (let i = 0; i < 28; i++) {
+    const c = document.createElement("span"); c.className = "confetti";
+    c.textContent = ["💗", "✦", "🌸", "⭐", "💜", "✧"][i % 6];
+    c.style.left = Math.random() * 100 + "vw"; c.style.animationDelay = Math.random() * 0.6 + "s";
+    c.style.fontSize = 16 + Math.random() * 16 + "px";
+    document.body.append(c); setTimeout(() => c.remove(), 3200);
+  }
+}
+
 // ---------- start ----------
 (async () => {
   applyLang();
@@ -414,4 +459,18 @@ async function badge() {
   speechSynthesis?.getVoices();
   say(greeting(), { voice: false });
   badge(); setInterval(badge, 3000); setInterval(tickClock, 15000);
+  runDemo(new URLSearchParams(location.search).get("demo"));
 })();
+
+// Demo links for presenting + README screenshots: ?demo=scam | storm | offline | memories | talk | night | alarm
+async function runDemo(d) {
+  if (!d) return;
+  const quiet = () => hush();
+  if (d === "night") { document.body.className = "night"; say(greeting(), { voice: false }); }
+  if (d === "talk") { const m = $("#meta"); lang = "es"; applyLang(); await talk("Hola Otto, cuéntame un chiste de búhos"); quiet(); const keep = m.textContent; go(null); m.textContent = keep; }
+  if (d === "scam") { go("scam"); $("#scamText").value = "IRS FINAL NOTICE: You owe $2,480 in back taxes. Pay TODAY with Target gift cards or a warrant for your arrest will be issued. Call (555) 013-7788."; await $("#scamGo").onclick(); quiet(); setTimeout(() => $("#verdict").scrollIntoView({ block: "center" }), 900); }
+  if (d === "storm") { go("storm"); $("#stepNext").click(); $("#stepNext").click(); quiet(); window.scrollTo(0, 0); }
+  if (d === "offline") { notice("offline_hi"); quiet(); }
+  if (d === "alarm") { go("storm"); raiseAlarm(); clearInterval(beepTimer); }
+  if (d === "memories") { go("memories"); quiet(); }
+}

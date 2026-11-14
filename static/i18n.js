@@ -132,3 +132,13 @@ const T2 = {
     greet_m: "Magandang umaga, {n}!", greet_a: "Magandang hapon, {n}!", greet_e: "Magandang gabi, {n}!", mic_fail: "Hindi kita narinig. Mag-type na lang tayo." },
 };
 for (const k in T2) Object.assign(T[k], T2[k]);
+
+// Things Otto says when you pet him.
+const TICKLE = {
+  en: ["Hoo-hoo! That tickles!", "Aww, thank you! You're my favorite.", "Hee hee, my feathers are so fluffy today.", "Hoo! I love you too."],
+  es: ["¡Uh-uh! ¡Me haces cosquillas!", "¡Ay, gracias! Eres mi favorita.", "Je je, hoy mis plumas están muy suaves.", "¡Uh! Yo también te quiero."],
+  hi: ["हू-हू! गुदगुदी हो रही है!", "अरे, धन्यवाद! आप मेरी सबसे प्यारी हैं।", "ही ही, आज मेरे पंख बहुत मुलायम हैं।", "हू! मैं भी आपसे प्यार करता हूँ।"],
+  zh: ["咕咕！好痒呀！", "谢谢您！您是我最喜欢的人。", "嘻嘻，我今天的羽毛好软。", "咕！我也爱您。"],
+  vi: ["Hú hú! Nhột quá!", "Ôi, cảm ơn! Bạn là người tôi thương nhất.", "Hi hi, lông tôi hôm nay mềm lắm.", "Hú! Tôi cũng thương bạn."],
+  tl: ["Huu-huu! Nakikiliti ako!", "Aww, salamat! Ikaw ang paborito ko.", "Hihi, malambot ang balahibo ko ngayon.", "Huu! Mahal din kita."],
+};
