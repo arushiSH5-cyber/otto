@@ -8,7 +8,7 @@
 ## English
 
 ### One line
-Otto is a talking owl that keeps grandma company in her own language, stops scams before she pays, and checks on her when the power and internet go down. It runs entirely on a Qualcomm Dragonwing IQ-9075 with Liquid AI LFM3 models, and its screen counts every byte that leaves the house: 0.
+Otto is a talking owl that keeps grandma company in her own language, stops scams before she pays, and checks on her when the power and internet go down. It runs entirely on-device with Liquid AI LFM3 models (text, vision and audio), and its screen counts every byte that leaves the house: 0.
 
 ### Who it's for, and the real need
 Older adults living alone face three things at once: loneliness, scams that target them by phone and mail (gift-card "IRS" letters, "grandma, I'm in jail" texts), and emergencies when a storm knocks out power and internet. Those are exactly the moments a cloud assistant stops working.
@@ -21,7 +21,7 @@ Older adults living alone face three things at once: loneliness, scams that targ
 ### What each model does
 | Model | Runs on | Job in Otto |
 |---|---|---|
-| **LFM3-1.7B** (Q4_0, GenieX) | **iQ9 Hexagon NPU** | Talks with her (jokes, trivia, company), asks Memory Lane questions, titles her memories, translates scam reasons into her language |
+| **LFM3-1.7B** | llama.cpp (local); GenieX backend for the **iQ9 Hexagon NPU** is built in, with a live Mac/iQ9 switch | Talks with her (jokes, trivia, company), asks Memory Lane questions, titles her memories, translates scam reasons into her language |
 | **LFM3-VL-2B** | llama.cpp (local) | Reads a photographed letter → strict JSON with a probability per red flag (money, gift cards, password, urgency, who it pretends to be). Also looks at old family photos and asks who's in them |
 | **LFM3-Audio-2B** | llama.cpp (local) | Hears her voice in English or Spanish (tap and talk), so she doesn't have to type |
 | **Rules in code** | CPU | The safety gate: no medicine doses, never helps send money or gift cards, a money request means "don't pay, call family", unsure means "ask Maria first" |
@@ -37,7 +37,7 @@ Older adults living alone face three things at once: loneliness, scams that targ
 - **Technical execution (20%):** three LFM3 models, strict JSON with validation and a retry, safety rules in code, a JSONL audit log, and a replay fallback.
 - **Originality (20%):** not a chatbot. It's a companion that watches, decides and acts, and turns verdicts into actions.
 - **Usefulness (15%):** a clear user (a grandparent living alone), a clear need (scams, outages, loneliness), and a next step: a small box in the home.
-- **Performance (10%):** latency and tokens/s are shown live under every answer, and the backend switch compares the Mac and iQ9 on the same question.
+- **Performance (10%):** latency and tokens/s are shown live under every answer (first word ~0.3 s, ~60 tok/s on an Apple M4).
 - **Demo (10%):** below.
 
 ### 2-minute demo
@@ -47,6 +47,10 @@ Older adults living alone face three things at once: loneliness, scams that targ
 4. Storm Mode → don't tap → alarm + **I NEED HELP**.
 5. Show the JSONL log: every decision and action, with timestamps.
 
+### Status, honestly
+- **Running and tested offline:** all three LFM3 models, every feature above, and the JSONL log. Measured on an Apple M4 with llama.cpp.
+- **Built, bringing up on the board:** `BACKEND=iq9` sends Otto's text model to GenieX v0.10.0 on the IQ-9075's Hexagon NPU (LFM3-1.7B Q4_0, capped and validated requests, thinking off). `iq9/setup.sh` and `iq9/serve.sh` set the board up. Next: VL and Audio on the board via the ZETIC Hexagon route.
+
 ### Safety
 No medicine doses or diagnoses ("call your doctor, or 911"). Never helps send money, buy gift cards or share passwords. Shows its confidence and asks family when unsure. Not a replacement for 911.
 
@@ -55,7 +59,7 @@ No medicine doses or diagnoses ("call your doctor, or 911"). Never helps send mo
 ## Español
 
 ### En una línea
-Otto es un búho que habla con la abuela en su idioma, la protege de estafas antes de que pague y la cuida cuando se va la luz y el internet. Funciona completamente en un Qualcomm Dragonwing IQ-9075 con modelos LFM3 de Liquid AI, y su pantalla cuenta cada byte que sale de la casa: 0.
+Otto es un búho que habla con la abuela en su idioma, la protege de estafas antes de que pague y la cuida cuando se va la luz y el internet. Funciona completamente en el dispositivo con modelos LFM3 de Liquid AI, y su pantalla cuenta cada byte que sale de la casa: 0.
 
 ### ¿Por qué no usar la nube?
 1. **El internet se cae justo cuando más lo necesita.** El Modo Tormenta es para apagones. Un asistente en la nube deja de funcionar; Otto se da cuenta solo y ofrece ayuda.
@@ -63,7 +67,7 @@ Otto es un búho que habla con la abuela en su idioma, la protege de estafas ant
 3. **Costo fijo.** Está siempre encendido y pregunta cómo está cada 30 minutos, sin cobro por uso.
 
 ### Qué hace cada modelo
-- **LFM3-1.7B (NPU del iQ9):** conversa, hace preguntas de recuerdos, pone títulos y traduce.
+- **LFM3-1.7B** (local; listo para la NPU del iQ9): conversa, hace preguntas de recuerdos, pone títulos y traduce.
 - **LFM3-VL-2B:** lee la carta fotografiada y devuelve la probabilidad de cada señal de estafa; mira fotos antiguas y pregunta quién sale en ellas.
 - **LFM3-Audio-2B:** entiende su voz en español o inglés.
 - **Reglas en código:** nunca da dosis de medicinas, nunca ayuda a enviar dinero; ante la duda dice "llamemos a Maria".

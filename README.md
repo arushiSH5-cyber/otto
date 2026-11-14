@@ -66,7 +66,7 @@ Full write-up (English + Español): [SUBMISSION.md](SUBMISSION.md)
 
 | Job | Model | Quant |
 |---|---|---|
-| Talk, Memory Lane, titles, translating reasons, on the **iQ9 Hexagon NPU** via GenieX v0.10.0 (Mac fallback: llama.cpp) | `LiquidAI/LFM3-1.7B-GGUF` | Q4_0 (iQ9) / Q4_K_M (Mac) |
+| Talk, Memory Lane, titles, translating reasons, on this Mac via llama.cpp; GenieX backend for the **iQ9 Hexagon NPU** built in (`BACKEND=iq9`) | `LiquidAI/LFM3-1.7B-GGUF` | Q4_0 (iQ9) / Q4_K_M (Mac) |
 | Scam Check (photo → strict JSON), Photo Memories | `LiquidAI/LFM3-VL-2B-GGUF` + mmproj | Q4_K_M / Q8_0 |
 | Her voice → text, 6 languages | `LiquidAI/LFM3-Audio-2B-GGUF` + mmproj | Q4_K_M / Q8_0 |
 
