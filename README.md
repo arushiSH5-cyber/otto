@@ -15,6 +15,14 @@
 
 ---
 
+## ❓ Why not just a cloud API call?
+
+1. **The network is down exactly when she needs Otto most.** Storm Mode exists for power and internet outages; Otto notices the Wi-Fi drop or the charger being pulled and helps unprompted.
+2. **The data is the most private there is:** her life stories, family photos, medical note, and the scam letters she photographs.
+3. **Flat cost for a fixed-income user:** always on, check-ins every 30 minutes, no per-token bill.
+
+Full write-up (English + Español): [SUBMISSION.md](SUBMISSION.md)
+
 ## 🌸 Meet Otto
 
 <table>
@@ -58,7 +66,7 @@
 
 | Job | Model | Quant |
 |---|---|---|
-| Talk (streamed), Memory Lane, titles, translating reasons | `LiquidAI/LFM3-1.7B-GGUF` | Q4_K_M |
+| Talk, Memory Lane, titles, translating reasons, on the **iQ9 Hexagon NPU** via GenieX v0.10.0 (Mac fallback: llama.cpp) | `LiquidAI/LFM3-1.7B-GGUF` | Q4_0 (iQ9) / Q4_K_M (Mac) |
 | Scam Check (photo → strict JSON), Photo Memories | `LiquidAI/LFM3-VL-2B-GGUF` + mmproj | Q4_K_M / Q8_0 |
 | Her voice → text, 6 languages | `LiquidAI/LFM3-Audio-2B-GGUF` + mmproj | Q4_K_M / Q8_0 |
 
@@ -105,7 +113,9 @@ BACKEND=mac uvicorn server:app --host 127.0.0.1 --port 8000
 ```
 </details>
 
-- **Backends** (`llm.py`): `BACKEND=mac` (local llama-server), `iq9` (set `IQ9_URL`), or `replay` (canned answers, a last-resort demo saver).
+- **Backends** (`llm.py`): `BACKEND=mac` (local llama-server), `iq9` (GenieX on the board's NPU, reached at `IQ9_URL`), or `replay` (canned answers, a last-resort demo saver). Switch live in Settings → "Otto's brain".
+- **On the iQ9:** run `iq9/setup.sh` once on the board (NPU packages, GenieX v0.10.0, LFM3-1.7B Q4_0), then `iq9/serve.sh start`.
+- **Decision log:** every chat, scam verdict and action, safety refusal, check-in, alarm and outage is one line in `data/otto-log.jsonl` (also at `/api/log`).
 - **Demo links:** open any screen in a ready state with `?demo=talk`, `scam`, `storm`, `offline`, `alarm`, `memories` or `night`.
 - **Demo letters** for Scam Check are in `demo/`. All phone numbers are fake 555 numbers.
 
