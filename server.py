@@ -26,6 +26,12 @@ def load(p, default):
 
 def settings(): return {**DEFAULT_SETTINGS, **load(SETTINGS, {})}
 
+LOG = DATA / "otto-log.jsonl"
+def log(event, **kw):
+    """One JSON line per thing Otto noticed, decided or did (the judges' audit trail)."""
+    row = {"ts": datetime.datetime.now().isoformat(timespec="seconds"), "event": event, "backend": llm.BACKEND, **kw}
+    with LOG.open("a") as f: f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
 # ---------- Safety rules (in code, not just in the prompt) ----------
 MED_RE = re.compile(r"\b(dose|dosage|how many (pills|tablets|mg)|\d+\s?mg|overdose|diagnos\w*|prescri\w*|should i take|medicine|medication|pills?)\b|dosis|medicina|pastillas|दवा|खुराक|药|剂量|thuốc|liều|gamot|dosis", re.I)
 MONEY_RE = re.compile(r"gift ?cards?|wire (money|transfer)|send (money|cash)|western union|bitcoin|crypto|password|\bpin\b|bank account|routing number|social security|tarjetas? de regalo|contraseña|enviar dinero|पासवर्ड|गिफ्ट कार्ड|礼品卡|密码|汇款|thẻ quà|mật khẩu|chuyển tiền|gift card|magpadala ng pera", re.I)
@@ -86,12 +92,14 @@ async def chat_stream(inp: ChatIn):
     msg, kind = safety_reply(last, inp.lang)
     async def gen():
         if msg:
+            log("safety_rule", rule=kind, lang=inp.lang, action="refused_and_redirected")
             yield json.dumps({"t": msg}) + "\n"
             yield json.dumps({"done": {"model": "safety rule", "latency_s": 0, "safety": kind}}) + "\n"; return
         msgs = [{"role": "system", "content": system_prompt(inp.lang)}] + inp.messages[-8:]
         out = ""
         async for x in llm.stream(msgs):
             if isinstance(x, dict):
+                log("talk", lang=inp.lang, device=x.get("backend"), latency_s=x.get("latency_s"), tok_s=x.get("tok_s"))
                 yield json.dumps({"done": x}) + "\n"
             else:
                 out += x
@@ -181,6 +189,7 @@ async def memory_save(inp: MemIn):
     mems = load(MEM, [])
     item = {"id": uuid.uuid4().hex[:8], "date": datetime.date.today().isoformat(),
             "title": title, "question": inp.question, "answer": inp.answer, "lang": inp.lang, "photo_id": inp.photo_id}
+    log("memory_saved", title=item["title"], has_photo=bool(inp.photo_id), lang=inp.lang)
     mems.insert(0, item); MEM.write_text(json.dumps(mems, ensure_ascii=False, indent=1))
     return {"memory": item, "text": reply["text"], **meta(reply)}
 
@@ -253,6 +262,9 @@ async def scam(inp: ScamIn):
                                  {"role": "user", "content": line}], max_tokens=80, temperature=0.1)
             return r2["text"].split("\n")[0].strip().strip('"“”«»')
         out.reasons = list(await asyncio.gather(*[tr(x) for x in out.reasons]))
+    log("scam_check", verdict=verdict, scam_prob=out.scam_prob, flags={"money": out.asks_for_money, "gift_cards": out.asks_for_gift_cards,
+        "password": out.asks_for_password, "urgency": out.urgency_pressure}, action={"dont_pay": "told_her_not_to_pay_and_call_family",
+        "scam": "told_her_not_to_reply", "unsure": "asked_her_to_check_with_family", "ok": "reassured"}[verdict], latency_s=r["latency_s"])
     return {"result": out.model_dump(), "verdict": verdict, "contact": settings()["contact_name"], **meta(r)}
 
 # ---------- Settings / status ----------
@@ -263,7 +275,41 @@ def get_settings(): return settings()
 def set_settings(s: dict):
     SETTINGS.write_text(json.dumps({**settings(), **s}, ensure_ascii=False, indent=1)); return settings()
 
+class BackendIn(BaseModel):
+    backend: str
+
+@app.post("/api/backend")
+async def set_backend(inp: BackendIn):
+    if inp.backend not in ("mac", "iq9", "replay"): raise HTTPException(400, "unknown backend")
+    llm.BACKEND = inp.backend
+    log("backend_switched", to=inp.backend)
+    return {"backend": llm.BACKEND}
+
+@app.get("/api/iq9/health")
+async def iq9_health():
+    try:
+        r = await llm.client.get(llm.IQ9_URL + "/v1/models", timeout=3)
+        return {"ok": r.status_code == 200, "url": llm.IQ9_URL}
+    except Exception as e:
+        return {"ok": False, "url": llm.IQ9_URL, "error": type(e).__name__}
+
+ALLOWED_EVENTS = {"storm_started", "checkin_asked", "checkin_ok", "alarm_raised", "wifi_lost", "power_lost", "call_family_shown"}
+class EventIn(BaseModel):
+    event: str
+    detail: dict = {}
+
+@app.post("/api/log")
+def client_event(inp: EventIn):
+    if inp.event not in ALLOWED_EVENTS: raise HTTPException(400, "unknown event")
+    log(inp.event, **{k: v for k, v in inp.detail.items() if k in ("lang", "after_s", "battery", "step")})
+    return {"ok": True}
+
+@app.get("/api/log")
+def read_log(n: int = 50):
+    lines = LOG.read_text().splitlines()[-n:] if LOG.exists() else []
+    return [json.loads(x) for x in lines]
+
 @app.get("/api/status")
-def status(): return {"backend": llm.BACKEND, "external_requests": llm.external["requests"], "external_bytes": llm.external["bytes"]}
+def status(): return {"backend": llm.BACKEND, "iq9_url": llm.IQ9_URL, "external_requests": llm.external["requests"], "external_bytes": llm.external["bytes"]}
 
 app.mount("/", StaticFiles(directory=ROOT / "static", html=True), name="static")

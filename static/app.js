@@ -84,6 +84,7 @@ function showMeta(r) {
   $("#meta").textContent = s;
 }
 
+function logEvent(event, detail = {}) { api("/api/log", { event, detail: { lang, ...detail } }).catch(() => {}); }
 async function api(path, body) {
   const r = await fetch(path, body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : {});
   if (!r.ok) throw new Error(await r.text());
@@ -303,7 +304,7 @@ function startStorm() {
   mood("storm");
   $("#steps").innerHTML = t("steps").map((s) => `<li>${s}</li>`).join("");
   $("#stepNext").hidden = false; $("#checkStatus").textContent = "";
-  showBattery();
+  showBattery(); logEvent("storm_started", { battery: battery ? Math.round(battery.level * 100) : null });
   say(t("storm_intro"));
 }
 $("#stepNext").onclick = () => {
@@ -315,7 +316,7 @@ $("#stepNext").onclick = () => {
 };
 function checkIn() {
   clearTimers();
-  $("#checkin").hidden = false; say(t("areyouok"));
+  $("#checkin").hidden = false; say(t("areyouok")); logEvent("checkin_asked");
   let left = ALARM_AFTER() / 1000;
   $("#countdown").textContent = "⏳ " + left;
   tickTimer = setInterval(() => { left--; $("#countdown").textContent = "⏳ " + Math.max(0, left); }, 1000);
@@ -328,7 +329,7 @@ function raiseAlarm() {
   $("#a-medical").textContent = settings.medical || "";
   $("#a-contact").textContent = `${settings.contact_relation || ""} ${settings.contact_name}: ${settings.contact_phone}`;
   $("#alarm").hidden = false;
-  startBeeps();
+  startBeeps(); logEvent("alarm_raised", { after_s: ALARM_AFTER() / 1000 });
 }
 function startBeeps() {
   try {
@@ -345,6 +346,7 @@ function startBeeps() {
   } catch (e) {}
 }
 function imOk() {
+  logEvent("checkin_ok");
   clearInterval(beepTimer); beepTimer = null;
   $("#alarm").hidden = true; $("#checkin").hidden = true;
   clearTimers();
@@ -378,19 +380,23 @@ function notice(key) {
 }
 $("#noticeStorm").onclick = () => { $("#notice").hidden = true; go("storm"); };
 $("#noticeFine").onclick = () => { $("#notice").hidden = true; mood("happy", 2000); say(t("ok_thanks")); };
-window.addEventListener("offline", () => { badge(); notice("offline_hi"); });
+window.addEventListener("offline", () => { badge(); logEvent("wifi_lost"); notice("offline_hi"); });
 window.addEventListener("online", badge);
 navigator.getBattery?.().then((b) => {
   battery = b;
-  b.addEventListener("chargingchange", () => { if (!b.charging) notice("power_hi"); showBattery(); });
+  b.addEventListener("chargingchange", () => { if (!b.charging) { logEvent("power_lost", { battery: Math.round(b.level * 100) }); notice("power_hi"); } showBattery(); });
   b.addEventListener("levelchange", showBattery);
 }).catch(() => {});
 
 // ---------- Settings ----------
 const FIELDS = ["name", "medical", "contact_relation", "contact_name", "contact_phone"];
-function fillSettings() { FIELDS.forEach((f) => ($("#s-" + f).value = settings[f] || "")); $("#s-demo").checked = !!settings.demo; }
+async function fillSettings() {
+  const st = await api("/api/status"), h = await api("/api/iq9/health");
+  $("#s-backend").value = st.backend;
+  $("#iq9state").textContent = h.ok ? "🟢 iQ9 NPU reachable" : "⚪ iQ9 not connected yet"; FIELDS.forEach((f) => ($("#s-" + f).value = settings[f] || "")); $("#s-demo").checked = !!settings.demo; }
 $("#saveSettings").onclick = async () => {
   const s = {}; FIELDS.forEach((f) => (s[f] = $("#s-" + f).value)); s.demo = $("#s-demo").checked;
+  await api("/api/backend", { backend: $("#s-backend").value });
   settings = await api("/api/settings", s); go(null); say("👍 " + greeting(), { voice: false }); happy();
 };
 
