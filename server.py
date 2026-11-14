@@ -174,9 +174,9 @@ async def scam(inp: ScamIn):
     else: verdict = "ok"
     if inp.lang != "en" and out.reasons:  # reasons in her language, via the text model
         async def tr(line):
-            r2 = await llm.chat([{"role": "system", "content": f"You are a translator. The text is a safety note explaining why a message may be a scam. Translate it into {LANGS[inp.lang]}. Output only the translation, nothing else."},
+            r2 = await llm.chat([{"role": "system", "content": f"Translate the user's sentence from English into {LANGS[inp.lang]}. Output only the translated sentence."},
                                  {"role": "user", "content": line}], max_tokens=80, temperature=0.1)
-            return r2["text"].split("\n")[0].strip()
+            return r2["text"].split("\n")[0].strip().strip('"“”«»')
         out.reasons = list(await asyncio.gather(*[tr(x) for x in out.reasons]))
     return {"result": out.model_dump(), "verdict": verdict, "contact": settings()["contact_name"], **meta(r)}
 
