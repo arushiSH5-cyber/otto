@@ -1,0 +1,29 @@
+Otto is a talking owl for grandparents who live alone. He chats with her in her own language (English or Spanish, plus Hindi, Chinese, Vietnamese and Tagalog), stops scams before she pays, and checks on her when the power and internet go down. It runs fully on-device with Liquid AI LFM3, and a live badge counts every byte that leaves the house: 0.
+
+WHY NOT A CLOUD API CALL
+1. The network is down exactly when she needs Otto most. Storm Mode is for power and internet outages; Otto notices the Wi-Fi drop or the charger being pulled and offers help unprompted.
+2. The data is deeply private: her life stories, family photos, medical note, and the scam letters she photographs.
+3. Flat cost for a fixed-income user: always on, no per-token bill.
+
+MODELS
+- LFM3-1.7B: conversation, Memory Lane questions, memory titles, translating scam reasons. Streamed; first word in ~0.3 s, ~60 tok/s.
+- LFM3-VL-2B: reads a photographed letter and returns strict JSON with a probability per red flag (money, gift cards, password, urgency, who it pretends to be). Also looks at old family photos and asks who's in them.
+- LFM3-Audio-2B: hears her voice (tap and talk), in Spanish or English.
+- Rules in code: no medicine doses, never helps send money or gift cards. A money request means "don't pay, call family"; an unsure verdict means "ask Maria first".
+- Qualcomm iQ9: not run on the board in time. A GenieX backend for the Hexagon NPU (LFM3-1.7B Q4_0) and setup scripts are in the code (iq9/) but untested on hardware. That's the next step.
+
+WHAT TO TRY
+1. Talk: tap a quick reply or the mic. Switch the language to Español and ask "Otto, cuéntame un chiste". Real latency and tokens/s appear under each answer.
+2. Scam Check: "Is this a scam?" → upload demo/irs_scam.png (a fake IRS gift-card letter). You'll get "Likely a scam" with confidence bars, plain reasons, a giant "Call Maria" button and a callback script. Try demo/grandkid_note.png too: it scores as safe.
+3. Turn Wi-Fi off: Otto notices on his own and offers Storm Mode, and the badge reads "Offline · 0 bytes sent".
+4. Storm Mode: a spoken 4-step checklist, then "Are you OK?". Don't tap, and after 15 s an alarm sounds with a flashing I NEED HELP card (name, medical note, family phone). "I'm OK" stops it.
+5. Memories: answer a Memory Lane question or show an old photo, and it becomes a page in her printable Story Book.
+6. Pet Otto: tap him and he giggles.
+7. Decision log: data/otto-log.jsonl (or /api/log) records every verdict, action, safety refusal, check-in, alarm and outage with timestamps.
+Shortcut links: /?demo=scam, storm, offline, alarm, memories, talk, night
+
+RUN IT
+brew install llama.cpp; pip install fastapi uvicorn httpx pydantic; download the three LFM3 GGUFs (commands in the README); ./run.sh; open http://localhost:8000. Turn Wi-Fi off and everything keeps working.
+
+SAFETY
+No medicine doses or diagnoses. Never helps send money, buy gift cards or share passwords. Shows its confidence and asks family when unsure. Not a replacement for 911.

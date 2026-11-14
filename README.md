@@ -66,7 +66,7 @@ Full write-up (English + Español): [SUBMISSION.md](SUBMISSION.md)
 
 | Job | Model | Quant |
 |---|---|---|
-| Talk, Memory Lane, titles, translating reasons, on this Mac via llama.cpp; GenieX backend for the **iQ9 Hexagon NPU** built in (`BACKEND=iq9`) | `LiquidAI/LFM3-1.7B-GGUF` | Q4_0 (iQ9) / Q4_K_M (Mac) |
+| Talk, Memory Lane, titles, translating reasons, on-device via llama.cpp | `LiquidAI/LFM3-1.7B-GGUF` | Q4_0 (iQ9) / Q4_K_M (Mac) |
 | Scam Check (photo → strict JSON), Photo Memories | `LiquidAI/LFM3-VL-2B-GGUF` + mmproj | Q4_K_M / Q8_0 |
 | Her voice → text, 6 languages | `LiquidAI/LFM3-Audio-2B-GGUF` + mmproj | Q4_K_M / Q8_0 |
 
@@ -114,7 +114,7 @@ BACKEND=mac uvicorn server:app --host 127.0.0.1 --port 8000
 </details>
 
 - **Backends** (`llm.py`): `BACKEND=mac` (local llama-server), `iq9` (GenieX on the board's NPU, reached at `IQ9_URL`), or `replay` (canned answers, a last-resort demo saver). Switch live in Settings → "Otto's brain".
-- **On the iQ9:** run `iq9/setup.sh` once on the board (NPU packages, GenieX v0.10.0, LFM3-1.7B Q4_0), then `iq9/serve.sh start`.
+- **Qualcomm iQ9 (next step, untested on hardware):** `iq9/setup.sh` (NPU packages, GenieX v0.10.0, LFM3-1.7B Q4_0) and `iq9/serve.sh start` follow the hackathon guide; `BACKEND=iq9` points Otto's text model at the board's NPU. We didn't get the board running during the event.
 - **Decision log:** every chat, scam verdict and action, safety refusal, check-in, alarm and outage is one line in `data/otto-log.jsonl` (also at `/api/log`).
 - **Demo links:** open any screen in a ready state with `?demo=talk`, `scam`, `storm`, `offline`, `alarm`, `memories` or `night`.
 - **Demo letters** for Scam Check are in `demo/`. All phone numbers are fake 555 numbers.
@@ -144,7 +144,7 @@ BACKEND=mac uvicorn server:app --host 127.0.0.1 --port 8000
 
 ## 🗺️ Roadmap
 
-- **A.** Run on the Qualcomm **iQ9** (Nexa SDK on the NPU, or llama.cpp on the CPU) via `BACKEND=iq9`, with iQ9 latency on screen.
+- **A.** Bring up the built-in iQ9 backend on the Qualcomm **iQ9** (Nexa SDK on the NPU, or llama.cpp on the CPU) via `BACKEND=iq9`, with iQ9 latency on screen.
 - **B.** **d1-2B** for Scam Check (calibrated probabilities in one pass).
 - **C.** LFM3-Audio **voice out** too, so Otto has his own voice. Voice in is done.
 - **D.** Family digest: a weekly on-device summary of her memories and check-ins that she chooses to share.
