@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Otto</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div id="badge" class="badge" title="Counts every request that leaves this device">📴 Offline ✓ · 0 bytes sent</div>
+  <select id="lang" aria-label="Language">
+    <option value="en">English</option>
+    <option value="es">Español</option>
+    <option value="hi">हिन्दी</option>
+    <option value="zh">中文</option>
+    <option value="vi">Tiếng Việt</option>
+    <option value="tl">Tagalog</option>
+  </select>
+  <div id="speed" class="speed">⚡ on-device · LFM3</div>
+  <button id="gear" class="gear" aria-label="Settings">⚙️</button>
+</header>
+
+<main>
+  <section class="stage">
+    <svg id="owl" class="owl" viewBox="0 0 200 210" aria-label="Otto the owl" role="img">
+      <g class="owl-body">
+        <!-- ear tufts -->
+        <path d="M52 52 L40 18 L74 40 Z" fill="#8a5a3b"/>
+        <path d="M148 52 L160 18 L126 40 Z" fill="#8a5a3b"/>
+        <!-- body -->
+        <ellipse cx="100" cy="112" rx="72" ry="80" fill="#a8714c"/>
+        <ellipse cx="100" cy="135" rx="48" ry="52" fill="#f3dcb8"/>
+        <!-- belly feathers -->
+        <path d="M80 130 q6 6 12 0 M100 130 q6 6 12 0 M90 148 q6 6 12 0 M78 164 q6 6 12 0 M102 164 q6 6 12 0" stroke="#d9b98c" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <!-- wings -->
+        <path class="wing wing-l" d="M32 100 q-14 40 12 72 q8 -36 -12 -72 Z" fill="#8a5a3b"/>
+        <path class="wing wing-r" d="M168 100 q14 40 -12 72 q-8 -36 12 -72 Z" fill="#8a5a3b"/>
+        <!-- face discs -->
+        <circle cx="72" cy="80" r="30" fill="#fbeedd"/>
+        <circle cx="128" cy="80" r="30" fill="#fbeedd"/>
+        <!-- eyes -->
+        <g class="eyes">
+          <circle cx="72" cy="80" r="18" fill="#2b2118"/>
+          <circle cx="128" cy="80" r="18" fill="#2b2118"/>
+          <circle cx="78" cy="73" r="6" fill="#fff"/>
+          <circle cx="134" cy="73" r="6" fill="#fff"/>
+          <circle cx="67" cy="86" r="2.5" fill="#fff"/>
+          <circle cx="123" cy="86" r="2.5" fill="#fff"/>
+        </g>
+        <g class="lids">
+          <rect x="50" y="58" width="44" height="44" rx="22" fill="#fbeedd"/>
+          <rect x="106" y="58" width="44" height="44" rx="22" fill="#fbeedd"/>
+        </g>
+        <!-- cheeks -->
+        <ellipse cx="54" cy="106" rx="8" ry="5" fill="#f2a99a" opacity=".7"/>
+        <ellipse cx="146" cy="106" rx="8" ry="5" fill="#f2a99a" opacity=".7"/>
+        <!-- beak -->
+        <path class="beak-top" d="M90 100 L110 100 L100 114 Z" fill="#f2a33a"/>
+        <path class="beak-low" d="M93 108 L107 108 L100 118 Z" fill="#d9822b"/>
+        <!-- feet -->
+        <path d="M78 190 l-6 10 M84 191 l0 11 M90 190 l6 10 M110 190 l-6 10 M116 191 l0 11 M122 190 l6 10" stroke="#f2a33a" stroke-width="5" stroke-linecap="round"/>
+      </g>
+    </svg>
+    <div id="bubble" class="bubble" aria-live="polite">Hoo-hoo! Hello, I'm Otto.</div>
+    <div id="meta" class="meta"></div>
+  </section>
+
+  <nav id="home" class="home">
+    <button class="big" data-go="talk">🗣️ <span data-t="talk">Talk to Otto</span></button>
+    <button class="big" data-go="scam">🔍 <span data-t="scam">Is this a scam?</span></button>
+    <button class="big" data-go="storm">⛈️ <span data-t="storm">Storm Mode</span></button>
+    <button class="big" data-go="memories">📖 <span data-t="memories">Memories</span></button>
+  </nav>
+
+  <!-- TALK -->
+  <section id="p-talk" class="panel" hidden>
+    <div class="quick" id="quick"></div>
+    <form id="talkForm" class="row">
+      <input id="talkIn" autocomplete="off" data-ph="type">
+      <button class="go" data-t="send">Send</button>
+    </form>
+    <button class="big alt" id="laneBtn">🌳 <span data-t="lane">Memory Lane</span></button>
+    <form id="laneForm" class="col" hidden>
+      <textarea id="laneIn" rows="3" data-ph="answer"></textarea>
+      <button class="go" data-t="save">Save my memory</button>
+    </form>
+    <button class="back" data-t="back">← Back</button>
+  </section>
+
+  <!-- SCAM -->
+  <section id="p-scam" class="panel" hidden>
+    <label class="big alt file">📷 <span data-t="photo">Take or choose a photo</span>
+      <input id="scamFile" type="file" accept="image/*" capture="environment" hidden>
+    </label>
+    <img id="scamImg" class="preview" hidden alt="">
+    <textarea id="scamText" rows="3" data-ph="paste"></textarea>
+    <button class="go wide" id="scamGo" data-t="check">Check it</button>
+    <div id="verdict" class="verdict" hidden></div>
+    <button class="back" data-t="back">← Back</button>
+  </section>
+
+  <!-- STORM -->
+  <section id="p-storm" class="panel" hidden>
+    <ol id="steps" class="steps"></ol>
+    <button class="go wide" id="stepNext" data-t="next">Next</button>
+    <div id="checkStatus" class="status"></div>
+    <button class="back" id="stormStop" data-t="stop">← Stop Storm Mode</button>
+  </section>
+
+  <!-- MEMORIES -->
+  <section id="p-memories" class="panel" hidden>
+    <div id="book" class="book"></div>
+    <button class="back" data-t="back">← Back</button>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="p-settings" class="panel" hidden>
+    <h2 data-t="settings">Settings</h2>
+    <label>Name <input id="s-name"></label>
+    <label>Medical note <input id="s-medical"></label>
+    <label>Family relation <input id="s-contact_relation"></label>
+    <label>Family name <input id="s-contact_name"></label>
+    <label>Family phone <input id="s-contact_phone"></label>
+    <label class="check"><input type="checkbox" id="s-demo"> Demo mode (check-in every 60 s, alarm after 15 s)</label>
+    <button class="go wide" id="saveSettings" data-t="save">Save</button>
+    <p class="fine">Otto is not a replacement for 911. Everything stays on this device, in <code>data/</code>.</p>
+    <button class="back" data-t="back">← Back</button>
+  </section>
+</main>
+
+<!-- CHECK-IN -->
+<div id="checkin" class="overlay" hidden>
+  <div class="card">
+    <p class="huge" data-t="areyouok">Are you OK?</p>
+    <button class="ok" data-ok>✅ <span data-t="imok">I'm OK</span></button>
+    <p id="countdown" class="countdown"></p>
+  </div>
+</div>
+
+<!-- ALARM -->
+<div id="alarm" class="overlay alarm" hidden>
+  <div class="card help">
+    <p class="huge">🆘 I NEED HELP</p>
+    <p class="help-line">Please call <b>911</b></p>
+    <p class="help-line" id="a-name"></p>
+    <p class="help-line" id="a-medical"></p>
+    <p class="help-line" id="a-contact"></p>
+    <button class="ok" data-ok>✅ <span data-t="imok">I'm OK</span></button>
+  </div>
+</div>
+
+<footer class="foot" data-t="foot">Otto never gives medicine doses. In an emergency, call 911.</footer>
+<script src="app.js"></script>
+</body>
+</html>
